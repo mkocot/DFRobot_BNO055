@@ -19,23 +19,7 @@
 */
 #include "DFRobot_BNO055.h"
 
-// use data struct to map register address
-const DFRobot_BNO055::sRegsPage0_t PROGMEM    sRegsPage0 = DFRobot_BNO055::sRegsPage0_t();
-const DFRobot_BNO055::sRegsPage1_t PROGMEM    sRegsPage1 = DFRobot_BNO055::sRegsPage1_t();
-
-#ifdef __AVR__
-typedef uint16_t    platformBusWidth_t;
-#else
-typedef uint32_t    platformBusWidth_t;
-#endif
-
-// use regOffset0 to get register offset in reg page0, regOffset1 similar
-const platformBusWidth_t    regsPage0Addr = (platformBusWidth_t) & sRegsPage0;
-const platformBusWidth_t    regsPage1Addr = (platformBusWidth_t) & sRegsPage1;
-#define regOffset0(reg) ( (platformBusWidth_t) (& (reg)) - regsPage0Addr )
-#define regOffset1(reg) ( (platformBusWidth_t) (& (reg)) - regsPage1Addr )
-
-#define __DBG   0
+#define __DBG   1
 #if __DBG
 # define __DBG_CODE(x)   Serial.print("__DBG_CODE: "); Serial.print(__FUNCTION__); Serial.print(" "); Serial.print(__LINE__); Serial.print(" "); x; Serial.println()
 #else
@@ -66,14 +50,23 @@ DFRobot_BNO055::eStatus_t DFRobot_BNO055::begin()
       lastOperateStatus = eStatusErrDeviceReadyTimeOut;
     else {
       setOprMode(eOprModeConfig);
+      // NOTE(m): prevent "not detected" error
+      delay(200);
       setAxisMapConfig(eMapConfig_P1);
       delay(50);
+      delay(200);
       setUnit();
+      delay(200);
       setAccRange(eAccRange_4G);
+      delay(200);
       setGyrRange(eGyrRange_2000);
+      delay(200);
       setPowerMode(ePowerModeNormal);
+      delay(200);
       setOprMode(eOprModeNdof);
+      delay(200);
       delay(50);
+      delay(200);
     }
   } else
     lastOperateStatus = eStatusErrDeviceNotDetect;
@@ -96,6 +89,16 @@ uint8_t getOffsetOfData(DFRobot_BNO055::eAxis_t eAxis)
   }
 }
 
+
+uint8_t DFRobot_BNO055::getCalibration(DFRobot_BNO055::sRegCalibState_t *cal) {
+  setToPage(0);
+  readReg(
+    regOffset0(sRegsPage0.CALIB_STATE),
+    (uint8_t*)cal,
+    sizeof(*cal)
+  );
+  return lastOperateStatus;
+}
 
 
 DFRobot_BNO055::sAxisAnalog_t DFRobot_BNO055::getAxis(eAxis_t eAxis)
@@ -410,7 +413,7 @@ void DFRobot_BNO055::setAccHighGDuration(uint16_t dur)
   }
   uint8_t   temp = dur / 2;
   setToPage(1);
-  writeReg(regOffset1(sRegsPage1.ACC_HG_THRES), (uint8_t*) temp, sizeof(temp));
+  writeReg(regOffset1(sRegsPage1.ACC_HG_THRES), (uint8_t*) &temp, sizeof(temp));
 }
 
 void DFRobot_BNO055::setAccHighGThres(uint16_t thres)
@@ -473,18 +476,18 @@ void DFRobot_BNO055::setGyrIntEnable(eGyrIntSet_t eInt)
 {
   uint8_t   temp;
   setToPage(1);
-  readReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) temp, sizeof(temp));
+  readReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) &temp, sizeof(temp));
   temp |= eInt;
-  writeReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) temp, sizeof(temp));
+  writeReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) &temp, sizeof(temp));
 }
 
 void DFRobot_BNO055::setGyrIntDisable(eGyrIntSet_t eInt)
 {
   uint8_t   temp;
   setToPage(1);
-  readReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) temp, sizeof(temp));
+  readReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) &temp, sizeof(temp));
   temp &= ~ eInt;
-  writeReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) temp, sizeof(temp));
+  writeReg(regOffset1(sRegsPage1.GYR_INT_SETTING), (uint8_t*) &temp, sizeof(temp));
 }
 
 void DFRobot_BNO055::setGyrHrSet(eSingleAxis_t eSingleAxis, uint16_t thres, uint16_t dur)
@@ -526,7 +529,9 @@ uint8_t DFRobot_BNO055::getReg(uint8_t reg, uint8_t pageId)
 
 void DFRobot_BNO055::setToPage(uint8_t pageId)
 {
-  if(_currentPage != pageId) {
+  if(_currentPage == pageId) {
+    lastOperateStatus = eStatusOK;
+  } else {
     writeReg(regOffset0(sRegsPage0.PAGE_ID), &pageId, sizeof(pageId));
     if(lastOperateStatus == eStatusOK) {
       _currentPage = pageId;
@@ -537,6 +542,7 @@ void DFRobot_BNO055::setToPage(uint8_t pageId)
 void DFRobot_BNO055::setUnit()
 {
   sRegUnitSel_t   sReg;
+  // 1 or 0 no difference at all
   sReg.ACC = 1;   // 0: m/s^2, 1: mg
   sReg.EUL = 0;   // 0: degrees, 1: radians
   sReg.GYR = 0;   // 0: dps, 1: rps
@@ -554,7 +560,6 @@ void DFRobot_BNO055::writeRegBits(uint8_t reg, uint8_t flied, uint8_t val)
   regVal |= val;
   writeReg(reg, &regVal, sizeof(regVal));
 }
-
 /*
  * value is dependent on accelerometer range selected
  * --------------------------
@@ -713,6 +718,9 @@ DFRobot_BNO055::sAxisData_t DFRobot_BNO055::getAxisRaw(eAxis_t eAxis)
   uint8_t   offset = getOffsetOfData(eAxis);
   sAxisData_t   sAxis = {0};
   setToPage(0);
+  // Ignore results when we were unable to change page
+  if (lastOperateStatus != eStatusOK)
+    return sAxis;
   if(offset == 0)
     lastOperateStatus = eStatusErrParameter;
   else
@@ -750,12 +758,24 @@ void DFRobot_BNO055_IIC::readReg(uint8_t reg, uint8_t *pBuf, uint8_t len)
 {
   lastOperateStatus = eStatusErrDeviceNotDetect;
   _pWire->begin();
+  // _pWire->flush();
   _pWire->beginTransmission(_addr);
   _pWire->write(reg);
   if(_pWire->endTransmission() != 0)
     return;
 
-  _pWire->requestFrom(_addr, len);
+  if (_pWire->requestFrom(_addr, len) != len) {
+    __DBG_CODE(Serial.printf("[%d] error in requestFrom\n", (int)millis()););
+    return;
+  }
+  if (_pWire->lastError()) {
+    __DBG_CODE(Serial.printf("[%d] error in readReg\n", (int)millis()););
+    return;
+  }
+  if (_pWire->available() < len) {
+    __DBG_CODE(Serial.printf("[%d] not enough mana\n", (int)millis()););
+    return;
+  }
   for(uint8_t i = 0; i < len; i ++)
     pBuf[i] = _pWire->read();
   lastOperateStatus = eStatusOK;
@@ -765,6 +785,7 @@ void DFRobot_BNO055_IIC::writeReg(uint8_t reg, uint8_t *pBuf, uint8_t len)
 {
   lastOperateStatus = eStatusErrDeviceNotDetect;
   _pWire->begin();
+  // _pWire->flush();
   _pWire->beginTransmission(_addr);
   _pWire->write(reg);
   for(uint8_t i = 0; i < len; i ++)

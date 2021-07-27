@@ -613,6 +613,7 @@ public:
    */
   eStatus_t   begin();
 
+
   /**
    * @brief getAxisAnalog Get axis analog data
    * @param eAxis One axis type from eAxis_t
@@ -624,6 +625,14 @@ public:
    *                case eAxisGyr, unit dps
    */
   sAxisAnalog_t getAxis(eAxis_t eAxis);
+
+
+  /**
+   * @brief getCalibration Get sensor calibration status
+   * SYS status is broken on most boards
+   * @return 0: bad, 3:perfect
+   */
+  uint8_t getCalibration(sRegCalibState_t *cal);
 
   /**
    * @brief getEulAnalog Get euler analog data
@@ -919,5 +928,22 @@ protected:
   uint8_t   _addr;
 
 };
+
+
+// use data struct to map register address
+const DFRobot_BNO055::sRegsPage0_t PROGMEM    sRegsPage0 = DFRobot_BNO055::sRegsPage0_t();
+const DFRobot_BNO055::sRegsPage1_t PROGMEM    sRegsPage1 = DFRobot_BNO055::sRegsPage1_t();
+
+#ifdef __AVR__
+typedef uint16_t    platformBusWidth_t;
+#else
+typedef uint32_t    platformBusWidth_t;
+#endif
+
+// use regOffset0 to get register offset in reg page0, regOffset1 similar
+const platformBusWidth_t    regsPage0Addr = (platformBusWidth_t) & sRegsPage0;
+const platformBusWidth_t    regsPage1Addr = (platformBusWidth_t) & sRegsPage1;
+#define regOffset0(reg) ( (platformBusWidth_t) (& (reg)) - regsPage0Addr )
+#define regOffset1(reg) ( (platformBusWidth_t) (& (reg)) - regsPage1Addr )
 
 #endif
