@@ -50,23 +50,12 @@ DFRobot_BNO055::eStatus_t DFRobot_BNO055::begin()
       lastOperateStatus = eStatusErrDeviceReadyTimeOut;
     else {
       setOprMode(eOprModeConfig);
-      // NOTE(m): prevent "not detected" error
-      delay(200);
       setAxisMapConfig(eMapConfig_P1);
-      delay(50);
-      delay(200);
       setUnit();
-      delay(200);
       setAccRange(eAccRange_4G);
-      delay(200);
       setGyrRange(eGyrRange_2000);
-      delay(200);
       setPowerMode(ePowerModeNormal);
-      delay(200);
       setOprMode(eOprModeNdof);
-      delay(200);
-      delay(50);
-      delay(200);
     }
   } else
     lastOperateStatus = eStatusErrDeviceNotDetect;
