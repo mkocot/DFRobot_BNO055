@@ -19,7 +19,7 @@
 */
 #include "DFRobot_BNO055.h"
 
-#define __DBG   1
+//#define __DBG   1
 #if __DBG
 # define __DBG_CODE(x)   Serial.print("__DBG_CODE: "); Serial.print(__FUNCTION__); Serial.print(" "); Serial.print(__LINE__); Serial.print(" "); x; Serial.println()
 #else
